@@ -178,9 +178,11 @@ mod tests {
         assert_eq!(dispatched[0], "movetoworkspace 7,address:0xNOTIFY_TEST");
         assert_eq!(dispatched[1], "focuswindow address:0xNOTIFY_TEST");
 
-        assert!(timeout(Duration::from_millis(10), notify.notified())
-            .await
-            .is_ok());
+        assert!(
+            timeout(Duration::from_millis(10), notify.notified())
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -194,8 +196,10 @@ mod tests {
         assert_eq!(dispatched.len(), 1);
         assert_eq!(dispatched[0], "closewindow address:0xNOTIFY_TEST");
 
-        assert!(timeout(Duration::from_millis(10), notify.notified())
-            .await
-            .is_ok());
+        assert!(
+            timeout(Duration::from_millis(10), notify.notified())
+                .await
+                .is_ok()
+        );
     }
 }

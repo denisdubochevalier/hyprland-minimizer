@@ -3,12 +3,12 @@ use crate::dbus::{DbusMenu, StatusNotifierItem};
 use crate::hyprland::{Hyprland, WindowInfo};
 use crate::stack::Stack;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use futures_util::stream::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Notify;
-use tokio::time::{interval, Duration};
+use tokio::time::{Duration, interval};
 use zbus::{Connection, ConnectionBuilder, Proxy};
 
 // --- Trait for abstracting D-Bus interactions for testability ---
