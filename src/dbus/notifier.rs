@@ -1,5 +1,5 @@
 //! D-Bus implementation for org.kde.StatusNotifierItem.
-use crate::hyprland::{hyprctl, hyprctl_dispatch, WindowInfo, Workspace};
+use crate::hyprland::{WindowInfo, Workspace, hyprctl, hyprctl_dispatch};
 use std::sync::Arc;
 use tokio::sync::Notify;
 use zbus::dbus_interface;
@@ -168,9 +168,11 @@ mod tests {
         assert_eq!(dispatched[1], "focuswindow address:0xNOTIFY_TEST");
 
         // Assert that the exit signal was sent
-        assert!(timeout(Duration::from_millis(10), notify.notified())
-            .await
-            .is_ok());
+        assert!(
+            timeout(Duration::from_millis(10), notify.notified())
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -188,8 +190,10 @@ mod tests {
         assert_eq!(dispatched[0], "closewindow address:0xNOTIFY_TEST");
 
         // Assert that the exit signal was sent
-        assert!(timeout(Duration::from_millis(10), notify.notified())
-            .await
-            .is_ok());
+        assert!(
+            timeout(Duration::from_millis(10), notify.notified())
+                .await
+                .is_ok()
+        );
     }
 }

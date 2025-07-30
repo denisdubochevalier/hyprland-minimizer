@@ -1,5 +1,5 @@
 //! D-Bus implementation for com.canonical.dbusmenu.
-use crate::hyprland::{hyprctl, hyprctl_dispatch, WindowInfo, Workspace};
+use crate::hyprland::{WindowInfo, Workspace, hyprctl, hyprctl_dispatch};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -265,9 +265,11 @@ mod tests {
         assert_eq!(dispatched[1], "focuswindow address:0xTEST");
 
         // Assert that the exit signal was sent
-        assert!(timeout(Duration::from_millis(10), notify.notified())
-            .await
-            .is_ok());
+        assert!(
+            timeout(Duration::from_millis(10), notify.notified())
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -284,9 +286,11 @@ mod tests {
         assert_eq!(dispatched.len(), 2);
         assert_eq!(dispatched[0], "movetoworkspace 1,address:0xTEST");
         assert_eq!(dispatched[1], "focuswindow address:0xTEST");
-        assert!(timeout(Duration::from_millis(10), notify.notified())
-            .await
-            .is_ok());
+        assert!(
+            timeout(Duration::from_millis(10), notify.notified())
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -301,8 +305,10 @@ mod tests {
         let dispatched = mock_executor.dispatched_commands();
         assert_eq!(dispatched.len(), 1);
         assert_eq!(dispatched[0], "closewindow address:0xTEST");
-        assert!(timeout(Duration::from_millis(10), notify.notified())
-            .await
-            .is_ok());
+        assert!(
+            timeout(Duration::from_millis(10), notify.notified())
+                .await
+                .is_ok()
+        );
     }
 }

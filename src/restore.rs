@@ -1,5 +1,5 @@
 //! Contains the logic for restoring the last minimized window.
-use crate::hyprland::{hyprctl, hyprctl_dispatch, WindowInfo, Workspace};
+use crate::hyprland::{WindowInfo, Workspace, hyprctl, hyprctl_dispatch};
 use crate::stack::Stack;
 use anyhow::{Context, Result};
 

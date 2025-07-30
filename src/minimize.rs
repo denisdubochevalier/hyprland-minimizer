@@ -1,15 +1,15 @@
 //! Contains the core logic for minimizing a window to a tray icon.
 use crate::dbus::{DbusMenu, StatusNotifierItem};
-use crate::hyprland::{hyprctl_dispatch, WindowInfo};
+use crate::hyprland::{WindowInfo, hyprctl_dispatch};
 use crate::stack::Stack;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 // You will need to add this crate: `cargo add async-trait`
 use async_trait::async_trait;
 use futures_util::stream::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Notify;
-use tokio::time::{interval, Duration};
+use tokio::time::{Duration, interval};
 use zbus::{Connection, ConnectionBuilder, Proxy};
 
 // --- Trait for abstracting D-Bus interactions for testability ---
@@ -186,8 +186,12 @@ fn spawn_background_tasks(
 
 /// A background task that re-registers the tray icon if the tray restarts.
 async fn watch_for_tray_restarts(arc_conn: Arc<Connection>, bus_name: String) {
-    let Ok(dbus_proxy) = zbus::fdo::DBusProxy::new(&arc_conn).await else { return };
-    let Ok(mut owner_changes) = dbus_proxy.receive_name_owner_changed().await else { return };
+    let Ok(dbus_proxy) = zbus::fdo::DBusProxy::new(&arc_conn).await else {
+        return;
+    };
+    let Ok(mut owner_changes) = dbus_proxy.receive_name_owner_changed().await else {
+        return;
+    };
 
     while let Some(signal) = owner_changes.next().await {
         let Ok(args) = signal.args() else { continue };
