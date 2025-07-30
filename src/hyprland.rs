@@ -1,8 +1,8 @@
 //! Functions and data structures for interacting with Hyprland.
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
-use std::cell::RefCell;
 use std::process::{Command, Output, Stdio};
+use std::sync::Arc;
 
 // --- Hyprland Data Structures ---
 #[derive(Deserialize, Debug, Clone, PartialEq)]
@@ -22,7 +22,8 @@ pub struct WindowInfo {
 // --- Abstraction for Testability ---
 
 /// A trait that abstracts the execution of `hyprctl` commands.
-pub trait HyprctlExecutor {
+/// It must be Send + Sync to be used across threads.
+pub trait HyprctlExecutor: Send + Sync {
     fn execute_json(&self, command: &str) -> Result<Output>;
     fn execute_dispatch(&self, command: &str) -> Result<Output>;
 }
@@ -52,49 +53,40 @@ impl HyprctlExecutor for LiveExecutor {
     }
 }
 
-// --- thread_local for holding the current executor ---
-thread_local! {
-    // We use a RefCell to allow for interior mutability.
-    // This lets us swap the executor at runtime for tests.
-    pub static EXECUTOR: RefCell<Box<dyn HyprctlExecutor>> = RefCell::new(Box::new(LiveExecutor));
-}
-
 // --- Hyprland Interaction Functions ---
 #[derive(Clone)]
-pub struct Hyprland {}
+pub struct Hyprland {
+    // The executor is now owned via an Arc, making it thread-safe and removing lifetimes.
+    executor: Arc<dyn HyprctlExecutor>,
+}
 
 impl Hyprland {
-    /// Creates a new Hyprland instance
-    pub fn new() -> Self {
-        Hyprland {}
+    /// Creates a new Hyprland instance with a given executor.
+    pub fn new(executor: Arc<dyn HyprctlExecutor>) -> Self {
+        Hyprland { executor }
     }
 
     /// Executes a hyprctl command and returns the parsed JSON output.
     pub fn exec<T: for<'de> Deserialize<'de>>(&self, command: &str) -> Result<T> {
-        EXECUTOR.with(|executor_cell| {
-            let executor = executor_cell.borrow();
-            let output = executor.execute_json(command)?;
+        let output = self.executor.execute_json(command)?;
 
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                anyhow::bail!("hyprctl command '{}' failed: {}", command, stderr);
-            }
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("hyprctl command '{command}' failed: {stderr}");
+        }
 
-            serde_json::from_slice(&output.stdout)
-                .with_context(|| format!("Failed to parse JSON from hyprctl command: {command}"))
-        })
+        serde_json::from_slice(&output.stdout)
+            .with_context(|| format!("Failed to parse JSON from hyprctl command: {command}"))
     }
 
     /// Executes a hyprctl dispatch command.
     pub fn dispatch(&self, command: &str) -> Result<()> {
-        EXECUTOR.with(|executor_cell| {
-            let executor = executor_cell.borrow();
-            let output = executor.execute_dispatch(command)?;
-            if !output.status.success() {
-                anyhow::bail!("hyprctl dispatch command '{}' failed", command);
-            }
-            Ok(())
-        })
+        let output = self.executor.execute_dispatch(command)?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("hyprctl dispatch command '{command}' failed: {stderr}");
+        }
+        Ok(())
     }
 
     /// Finds a window by its address from the list of all clients.
@@ -105,18 +97,19 @@ impl Hyprland {
         clients
             .into_iter()
             .find(|c| c.address == address)
-            .ok_or_else(|| anyhow!("Could not find a window with address '{}'", address))
+            .ok_or_else(|| anyhow!("Could not find a window with address '{address}'"))
     }
 }
 
 // --- Unit Tests ---
 #[cfg(test)]
 mod tests {
-    use super::*; // Import from parent
+    use super::*;
     use std::os::unix::process::ExitStatusExt;
     use std::process::ExitStatus;
 
-    /// Mock executor for testing, same as before.
+    /// Mock executor for testing.
+    #[derive(Default)]
     struct MockExecutor {
         stdout: String,
         is_success: bool,
@@ -138,54 +131,37 @@ mod tests {
         }
     }
 
-    /// Helper function to temporarily set a mock executor for a test.
-    fn with_mock_executor(mock: MockExecutor, test_fn: impl FnOnce()) {
-        EXECUTOR.with(|cell| {
-            // Replace the live executor with our mock one
-            *cell.borrow_mut() = Box::new(mock);
-        });
-        test_fn();
-        EXECUTOR.with(|cell| {
-            // Restore the live executor after the test
-            *cell.borrow_mut() = Box::new(LiveExecutor);
-        });
-    }
-
     #[test]
     fn test_get_window_by_address_success() {
         let mock_json =
             r#"[{"address": "0x456", "workspace": {"id": 2}, "title": "Kitty", "class": "kitty"}]"#;
-        let mock_executor = MockExecutor {
+        let mock_executor = Arc::new(MockExecutor {
             stdout: mock_json.to_string(),
             is_success: true,
-        };
-
-        with_mock_executor(mock_executor, || {
-            // Now we call the function with its original, clean signature!
-            let result = Hyprland::new().get_window_by_address("0x456");
-
-            assert!(result.is_ok());
-            let window = result.unwrap();
-            assert_eq!(window.title, "Kitty");
         });
+        let hyprland = Hyprland::new(mock_executor);
+
+        let result = hyprland.get_window_by_address("0x456");
+
+        assert!(result.is_ok());
+        let window = result.unwrap();
+        assert_eq!(window.title, "Kitty");
     }
 
     #[test]
     fn test_hyprctl_command_failure() {
-        let mock_executor = MockExecutor {
+        let mock_executor = Arc::new(MockExecutor {
             stdout: "".to_string(),
             is_success: false, // Simulate a command failure.
-        };
-
-        with_mock_executor(mock_executor, || {
-            let result = Hyprland::new().get_window_by_address("any");
-            assert!(result.is_err());
-
-            let err_string = format!("{:?}", result.unwrap_err());
-
-            // The assertions now check the full error report.
-            assert!(err_string.contains("Failed to get client list from Hyprland."));
-            assert!(err_string.contains("hyprctl command 'clients' failed: Mock failure"));
         });
+        let hyprland = Hyprland::new(mock_executor);
+
+        let result = hyprland.get_window_by_address("any");
+        assert!(result.is_err());
+
+        let err_string = format!("{:?}", result.unwrap_err());
+
+        assert!(err_string.contains("Failed to get client list from Hyprland."));
+        assert!(err_string.contains("hyprctl command 'clients' failed: Mock failure"));
     }
 }

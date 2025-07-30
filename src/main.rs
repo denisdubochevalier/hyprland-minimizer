@@ -8,9 +8,10 @@ mod stack;
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use std::sync::Arc;
 
 use crate::cli::Args;
-use crate::hyprland::Hyprland;
+use crate::hyprland::{Hyprland, LiveExecutor};
 use crate::minimize::{LiveDbus, Minimizer};
 use crate::restore::restore_last_minimized;
 use crate::stack::Stack;
@@ -19,7 +20,7 @@ use crate::stack::Stack;
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let hyprland = Hyprland::new();
+    let hyprland = Hyprland::new(Arc::new(LiveExecutor));
     let stack = Stack::at_default_path();
 
     if args.restore_last {

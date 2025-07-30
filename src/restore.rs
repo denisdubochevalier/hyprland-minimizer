@@ -93,25 +93,6 @@ mod tests {
         }
     }
 
-    // An RAII guard to manage the mock's lifetime.
-    // When this guard is dropped at the end of the test, it restores the real executor.
-    struct MockGuard;
-    impl Drop for MockGuard {
-        fn drop(&mut self) {
-            hyprland::EXECUTOR.with(|cell| {
-                *cell.borrow_mut() = Box::new(hyprland::LiveExecutor);
-            });
-        }
-    }
-
-    // Helper function to set the mock and return the guard.
-    fn set_mock_executor(mock: MockExecutor) -> MockGuard {
-        hyprland::EXECUTOR.with(|cell| {
-            *cell.borrow_mut() = Box::new(mock);
-        });
-        MockGuard
-    }
-
     // --- The Tests (FIXED) ---
 
     #[tokio::test]
@@ -119,20 +100,18 @@ mod tests {
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path());
         stack.push("0xRESTORE_TEST")?;
-        let hyprland = Hyprland::new();
 
-        let mock_executor = MockExecutor::default();
+        let mock_executor = Arc::new(MockExecutor::default());
+        // Explicitly cast the Arc<MockExecutor> to an Arc<dyn HyprctlExecutor>
+        let hyprland = Hyprland::new(mock_executor.clone() as Arc<dyn hyprland::HyprctlExecutor>);
+
         // Mock responses are popped in reverse order of calls.
         // 1. `hyprctl activeworkspace` will be called second.
         mock_executor.add_json_response(r#"{"id": 3}"#);
         // 2. `hyprctl clients` will be called first.
-        // FIXED: Added missing "title" and "class" fields.
         mock_executor.add_json_response(r#"[{"address": "0xRESTORE_TEST", "workspace": {"id": -99}, "title": "Test", "class": "Test"}]"#);
 
-        // Set the mock executor. The guard ensures it's cleaned up after.
-        let _guard = set_mock_executor(mock_executor.clone());
-
-        // Directly .await the function.
+        // Directly .await the function with the mock-powered hyprland instance.
         restore_last_minimized(&stack, &hyprland).await?;
 
         let dispatched = mock_executor.dispatched_commands();
@@ -151,14 +130,12 @@ mod tests {
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path());
         stack.push("0xALREADY_OPEN")?;
-        let hyprland = Hyprland::new();
 
-        let mock_executor = MockExecutor::default();
+        let mock_executor = Arc::new(MockExecutor::default());
+        let hyprland = Hyprland::new(mock_executor.clone() as Arc<dyn hyprland::HyprctlExecutor>);
+
         // The window is on workspace 2, not a special workspace.
-        // FIXED: Added missing "title" and "class" fields.
         mock_executor.add_json_response(r#"[{"address": "0xALREADY_OPEN", "workspace": {"id": 2}, "title": "Test", "class": "Test"}]"#);
-
-        let _guard = set_mock_executor(mock_executor.clone());
 
         restore_last_minimized(&stack, &hyprland).await?;
 
@@ -174,11 +151,9 @@ mod tests {
     async fn test_restore_with_empty_stack() -> Result<()> {
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path()); // An empty stack
-        let hyprland = Hyprland::new();
 
-        let mock_executor = MockExecutor::default();
-
-        let _guard = set_mock_executor(mock_executor.clone());
+        let mock_executor = Arc::new(MockExecutor::default());
+        let hyprland = Hyprland::new(mock_executor.clone() as Arc<dyn hyprland::HyprctlExecutor>);
 
         restore_last_minimized(&stack, &hyprland).await?;
 

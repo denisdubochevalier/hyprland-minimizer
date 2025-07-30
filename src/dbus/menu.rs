@@ -23,6 +23,7 @@ impl DbusMenu {
         DbusMenu {
             window_info,
             exit_notify,
+            // FIXED: Clone the hyprland instance to take ownership.
             hyprland: hyprland.clone(),
         }
     }
@@ -179,33 +180,22 @@ impl DbusMenu {
 mod tests {
     use super::*;
     use crate::hyprland;
-    use std::cell::RefCell;
     use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
     use std::sync::Mutex;
     use std::time::Duration;
     use tokio::time::timeout;
-    use zbus::zvariant::Value;
 
     // --- Mocking Setup for hyprland calls ---
 
-    // A thread_local to hold the mock executor, similar to the one in hyprland.rs
-    thread_local! {
-        static MOCK_EXECUTOR: RefCell<Box<dyn hyprland::HyprctlExecutor>> = RefCell::new(Box::new(MockExecutor::new()));
-    }
-
-    // A mock executor that records dispatched commands.
     #[derive(Default, Clone)]
     struct MockExecutor {
         dispatched_commands: Arc<Mutex<Vec<String>>>,
-        json_response: String,
+        json_responses: Arc<Mutex<Vec<String>>>,
     }
     impl MockExecutor {
-        fn new() -> Self {
-            Default::default()
-        }
-        fn set_json_response(&mut self, json: &str) {
-            self.json_response = json.to_string();
+        fn add_json_response(&self, json: &str) {
+            self.json_responses.lock().unwrap().push(json.to_string());
         }
         fn dispatched_commands(&self) -> Vec<String> {
             self.dispatched_commands.lock().unwrap().clone()
@@ -213,9 +203,15 @@ mod tests {
     }
     impl hyprland::HyprctlExecutor for MockExecutor {
         fn execute_json(&self, _command: &str) -> Result<Output> {
+            let response = self
+                .json_responses
+                .lock()
+                .unwrap()
+                .pop()
+                .unwrap_or_default();
             Ok(Output {
                 status: ExitStatus::from_raw(0),
-                stdout: self.json_response.as_bytes().to_vec(),
+                stdout: response.as_bytes().to_vec(),
                 stderr: vec![],
             })
         }
@@ -232,30 +228,17 @@ mod tests {
         }
     }
 
-    // Helper to swap the real executor with our mock for the duration of a test.
-    fn with_mock_executor(mock: MockExecutor, test_fn: impl FnOnce()) {
-        hyprland::EXECUTOR.with(|cell| {
-            *cell.borrow_mut() = Box::new(mock);
-        });
-        test_fn();
-        hyprland::EXECUTOR.with(|cell| {
-            *cell.borrow_mut() = Box::new(hyprland::LiveExecutor);
-        });
-    }
-
     // Helper to create a standard DbusMenu for tests.
-    fn create_test_menu() -> (DbusMenu, Arc<Notify>) {
+    fn create_test_menu(executor: Arc<MockExecutor>) -> (DbusMenu, Arc<Notify>) {
         let notify = Arc::new(Notify::new());
-        let menu = DbusMenu {
-            window_info: WindowInfo {
-                address: "0xTEST".to_string(),
-                class: "TestApp".to_string(),
-                title: "Test Window".to_string(),
-                workspace: Workspace { id: 1 },
-            },
-            exit_notify: Arc::clone(&notify),
-            hyprland: Hyprland::new(),
+        let window_info = WindowInfo {
+            address: "0xTEST".to_string(),
+            class: "TestApp".to_string(),
+            title: "Test Window".to_string(),
+            workspace: Workspace { id: 1 },
         };
+        let hyprland = Hyprland::new(executor as Arc<dyn hyprland::HyprctlExecutor>);
+        let menu = DbusMenu::new(window_info, Arc::clone(&notify), &hyprland);
         (menu, notify)
     }
 
@@ -263,14 +246,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_event_click_option_1_open_on_active() {
-        let (menu, notify) = create_test_menu();
-        let mut mock_executor = MockExecutor::new();
-        // Simulate `hyprctl activeworkspace` returning workspace 5
-        mock_executor.set_json_response(r#"{"id": 5}"#);
+        let mock_executor = Arc::new(MockExecutor::default());
+        let (menu, notify) = create_test_menu(mock_executor.clone());
+        mock_executor.add_json_response(r#"{"id": 5}"#);
 
-        with_mock_executor(mock_executor.clone(), || {
-            menu.event(1, "clicked", Value::from(0), 0);
-        });
+        // FIXED: Call the event to trigger the action.
+        menu.event(1, "clicked", Value::from(0), 0);
 
         // Assert that the correct commands were dispatched
         let dispatched = mock_executor.dispatched_commands();
@@ -279,50 +260,41 @@ mod tests {
         assert_eq!(dispatched[1], "focuswindow address:0xTEST");
 
         // Assert that the exit signal was sent
-        assert!(
-            timeout(Duration::from_millis(10), notify.notified())
-                .await
-                .is_ok()
-        );
+        assert!(timeout(Duration::from_millis(10), notify.notified())
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
     async fn test_event_click_option_2_open_on_original() {
-        let (menu, notify) = create_test_menu();
-        let mock_executor = MockExecutor::new();
+        let mock_executor = Arc::new(MockExecutor::default());
+        let (menu, notify) = create_test_menu(mock_executor.clone());
 
-        with_mock_executor(mock_executor.clone(), || {
-            // menu.window_info.workspace.id is 1
-            menu.event(2, "clicked", Value::from(0), 0);
-        });
+        // FIXED: Call the event to trigger the action.
+        menu.event(2, "clicked", Value::from(0), 0);
 
         let dispatched = mock_executor.dispatched_commands();
         assert_eq!(dispatched.len(), 2);
         assert_eq!(dispatched[0], "movetoworkspace 1,address:0xTEST");
         assert_eq!(dispatched[1], "focuswindow address:0xTEST");
-        assert!(
-            timeout(Duration::from_millis(10), notify.notified())
-                .await
-                .is_ok()
-        );
+        assert!(timeout(Duration::from_millis(10), notify.notified())
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
     async fn test_event_click_option_3_close_window() {
-        let (menu, notify) = create_test_menu();
-        let mock_executor = MockExecutor::new();
+        let mock_executor = Arc::new(MockExecutor::default());
+        let (menu, notify) = create_test_menu(mock_executor.clone());
 
-        with_mock_executor(mock_executor.clone(), || {
-            menu.event(3, "clicked", Value::from(0), 0);
-        });
+        // FIXED: Call the event to trigger the action.
+        menu.event(3, "clicked", Value::from(0), 0);
 
         let dispatched = mock_executor.dispatched_commands();
         assert_eq!(dispatched.len(), 1);
         assert_eq!(dispatched[0], "closewindow address:0xTEST");
-        assert!(
-            timeout(Duration::from_millis(10), notify.notified())
-                .await
-                .is_ok()
-        );
+        assert!(timeout(Duration::from_millis(10), notify.notified())
+            .await
+            .is_ok());
     }
 }

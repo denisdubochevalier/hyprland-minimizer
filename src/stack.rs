@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 const STACK_FILE_PATH: &str = "/tmp/hypr-minimizer-stack";
 
 // NEW: A struct to represent the stack file.
+#[derive(Clone)]
 pub struct Stack {
     path: PathBuf,
 }
