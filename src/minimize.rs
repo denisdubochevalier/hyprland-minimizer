@@ -11,7 +11,7 @@ use tokio::sync::Notify;
 use tokio::time::{Duration, interval};
 use zbus::{Connection, ConnectionBuilder, Proxy};
 
-// --- Trait for abstracting D-Bus interactions for testability ---
+// D-Bus Connection, mockable
 #[async_trait]
 pub trait DbusConnection: Send + Sync {
     async fn setup(
@@ -23,6 +23,7 @@ pub trait DbusConnection: Send + Sync {
     async fn register(&self, connection: &Arc<Connection>, bus_name: &str) -> Result<()>;
 }
 
+// Real instance of D-Bus
 pub struct LiveDbus;
 #[async_trait]
 impl DbusConnection for LiveDbus {
@@ -41,6 +42,7 @@ impl DbusConnection for LiveDbus {
     }
 }
 
+// Minimizer service
 pub struct Minimizer<'a, D: DbusConnection> {
     stack: &'a Stack,
     window_info: WindowInfo,
@@ -148,8 +150,6 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
         }
     }
 }
-
-// --- Private Helper Functions ---
 
 async fn setup_dbus_connection(
     window_info: &WindowInfo,
@@ -301,7 +301,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_minimize_failure_recovery() -> Result<()> {
-        // --- 1. Setup ---
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path());
 
@@ -316,11 +315,9 @@ mod tests {
         let hyprland = Hyprland::new(mock_executor.clone());
         let mock_dbus = MockDbus;
 
-        // --- 2. Execution ---
         let minimizer = Minimizer::new(&stack, test_window, hyprland, &mock_dbus);
         let result = minimizer.minimize().await;
 
-        // --- 3. Assertions ---
         assert!(result.is_err(), "Expected minimize to fail");
         let err_string = result.unwrap_err().to_string();
         assert!(

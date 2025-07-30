@@ -4,16 +4,16 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
+// Default application path
 const STACK_FILE_PATH: &str = "/tmp/hypr-minimizer-stack";
 
-// NEW: A struct to represent the stack file.
+// Represents the stack file.
 #[derive(Clone)]
 pub struct Stack {
     path: PathBuf,
 }
 
 impl Stack {
-    /// Creates a new Stack instance pointing to a specific path. (Useful for tests)
     #[cfg(test)]
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Stack { path: path.into() }
@@ -60,7 +60,6 @@ impl Stack {
     }
 }
 
-// These helpers are now private to the module.
 fn read_stack(path: &Path) -> Result<Vec<String>> {
     if !path.exists() {
         return Ok(Vec::new());
@@ -89,30 +88,24 @@ mod tests {
 
     #[test]
     fn test_stack_operations() -> Result<()> {
-        // Create a temporary file that is automatically deleted.
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path());
 
-        // 1. Stack should be empty initially
         assert!(stack.pop()?.is_none());
 
-        // 2. Push items
         stack.push("addr1")?;
         stack.push("addr2")?;
         stack.push("addr3")?;
 
-        // 3. Pop items in LIFO order
         assert_eq!(stack.pop()?.unwrap(), "addr3");
         assert_eq!(stack.pop()?.unwrap(), "addr2");
 
-        // 4. Remove an item from the middle
         stack.push("addr2-restored")?;
         stack.push("addr3-restored")?;
         // Stack is now: [addr1, addr2-restored, addr3-restored]
         stack.remove("addr2-restored")?;
         // Stack should be: [addr1, addr3-restored]
 
-        // 5. Verify final state
         assert_eq!(stack.pop()?.unwrap(), "addr3-restored");
         assert_eq!(stack.pop()?.unwrap(), "addr1");
         assert!(stack.pop()?.is_none());

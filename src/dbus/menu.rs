@@ -18,17 +18,14 @@ pub struct DbusMenu {
 type MenuLayout<'a> = (u32, (i32, HashMap<String, Value<'a>>, Vec<Value<'a>>));
 
 impl DbusMenu {
-    /// Instantiates DbusMenu
     pub fn new(window_info: WindowInfo, exit_notify: Arc<Notify>, hyprland: &Hyprland) -> Self {
         DbusMenu {
             window_info,
             exit_notify,
-            // FIXED: Clone the hyprland instance to take ownership.
             hyprland: hyprland.clone(),
         }
     }
 
-    /// Handles the logic for opening the window on the currently active workspace.
     fn handle_open_on_active(&self) -> Result<()> {
         let active_workspace = self.hyprland.exec::<Workspace>("activeworkspace")?;
         self.hyprland.dispatch(&format!(
@@ -39,7 +36,6 @@ impl DbusMenu {
             .dispatch(&format!("focuswindow address:{}", self.window_info.address))
     }
 
-    /// Handles the logic for opening the window on its original workspace.
     fn handle_open_on_original(&self) -> Result<()> {
         self.hyprland.dispatch(&format!(
             "movetoworkspace {},address:{}",
@@ -49,7 +45,6 @@ impl DbusMenu {
             .dispatch(&format!("focuswindow address:{}", self.window_info.address))
     }
 
-    /// Handles the logic for closing the window.
     fn handle_close(&self) -> Result<()> {
         self.hyprland
             .dispatch(&format!("closewindow address:{}", self.window_info.address))
@@ -58,7 +53,6 @@ impl DbusMenu {
 
 #[dbus_interface(name = "com.canonical.dbusmenu")]
 impl DbusMenu {
-    /// Returns the menu layout.
     fn get_layout(
         &self,
         _parent_id: i32,
@@ -98,7 +92,6 @@ impl DbusMenu {
         (2u32, root_layout)
     }
 
-    /// Returns the properties for a group of menu items.
     fn get_group_properties(
         &self,
         ids: Vec<i32>,
@@ -250,16 +243,13 @@ mod tests {
         let (menu, notify) = create_test_menu(mock_executor.clone());
         mock_executor.add_json_response(r#"{"id": 5}"#);
 
-        // FIXED: Call the event to trigger the action.
         menu.event(1, "clicked", Value::from(0), 0);
 
-        // Assert that the correct commands were dispatched
         let dispatched = mock_executor.dispatched_commands();
         assert_eq!(dispatched.len(), 2);
         assert_eq!(dispatched[0], "movetoworkspace 5,address:0xTEST");
         assert_eq!(dispatched[1], "focuswindow address:0xTEST");
 
-        // Assert that the exit signal was sent
         assert!(
             timeout(Duration::from_millis(10), notify.notified())
                 .await
@@ -272,7 +262,6 @@ mod tests {
         let mock_executor = Arc::new(MockExecutor::default());
         let (menu, notify) = create_test_menu(mock_executor.clone());
 
-        // FIXED: Call the event to trigger the action.
         menu.event(2, "clicked", Value::from(0), 0);
 
         let dispatched = mock_executor.dispatched_commands();
@@ -291,7 +280,6 @@ mod tests {
         let mock_executor = Arc::new(MockExecutor::default());
         let (menu, notify) = create_test_menu(mock_executor.clone());
 
-        // FIXED: Call the event to trigger the action.
         menu.event(3, "clicked", Value::from(0), 0);
 
         let dispatched = mock_executor.dispatched_commands();

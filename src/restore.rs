@@ -5,7 +5,6 @@ use anyhow::{Context, Result};
 
 /// Restores the last minimized window from the stack.
 pub async fn restore_last_minimized(stack: &Stack, hyprland: &Hyprland) -> Result<()> {
-    // Use `if let` to handle the case where the stack is empty, and return early.
     let Some(address) = stack.pop()? else {
         println!("No minimized windows in the stack to restore.");
         return Ok(());
@@ -17,7 +16,6 @@ pub async fn restore_last_minimized(stack: &Stack, hyprland: &Hyprland) -> Resul
         .exec("clients")
         .context("Failed to get client list to verify window existence.")?;
 
-    // Use a guard clause to check if the window is still minimized.
     let is_minimized = clients
         .iter()
         .any(|c| c.address == address && c.workspace.id < 0);
@@ -27,7 +25,6 @@ pub async fn restore_last_minimized(stack: &Stack, hyprland: &Hyprland) -> Resul
         return Ok(());
     }
 
-    // The main logic now proceeds without extra indentation.
     let active_workspace: Workspace = hyprland
         .exec("activeworkspace")
         .context("Failed to get active workspace for restoration.")?;
@@ -93,8 +90,6 @@ mod tests {
         }
     }
 
-    // --- The Tests (FIXED) ---
-
     #[tokio::test]
     async fn test_restore_with_window_in_special_workspace() -> Result<()> {
         let temp_file = NamedTempFile::new()?;
@@ -102,7 +97,6 @@ mod tests {
         stack.push("0xRESTORE_TEST")?;
 
         let mock_executor = Arc::new(MockExecutor::default());
-        // Explicitly cast the Arc<MockExecutor> to an Arc<dyn HyprctlExecutor>
         let hyprland = Hyprland::new(mock_executor.clone() as Arc<dyn hyprland::HyprctlExecutor>);
 
         // Mock responses are popped in reverse order of calls.

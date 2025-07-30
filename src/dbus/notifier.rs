@@ -16,7 +16,6 @@ pub struct StatusNotifierItem {
 type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>, String, String);
 
 impl StatusNotifierItem {
-    /// Instantiates StatusNotifierItem
     pub fn new(window_info: WindowInfo, exit_notify: Arc<Notify>, hyprland: Hyprland) -> Self {
         StatusNotifierItem {
             window_info,
@@ -110,14 +109,9 @@ mod tests {
     #[derive(Default, Clone)]
     struct MockExecutor {
         dispatched_commands: Arc<Mutex<Vec<String>>>,
-        // FIXED: This now correctly uses a Mutex for shared mutability.
         json_response: Arc<Mutex<String>>,
     }
     impl MockExecutor {
-        // This method is no longer needed as we can lock and modify the mutex directly.
-        // fn set_json_response(&mut self, json: &str) {
-        //     self.json_response = json.to_string();
-        // }
         fn dispatched_commands(&self) -> Vec<String> {
             self.dispatched_commands.lock().unwrap().clone()
         }
@@ -126,7 +120,6 @@ mod tests {
         fn execute_json(&self, _command: &str) -> Result<Output, anyhow::Error> {
             Ok(Output {
                 status: ExitStatus::from_raw(0),
-                // FIXED: Lock the mutex to get the response.
                 stdout: self.json_response.lock().unwrap().as_bytes().to_vec(),
                 stderr: vec![],
             })
@@ -158,13 +151,10 @@ mod tests {
         (item, notify)
     }
 
-    // --- The Tests ---
-
     #[tokio::test]
     async fn test_activate_restores_and_focuses_window() {
         let mock_executor = Arc::new(MockExecutor::default());
         let (item, notify) = create_test_item(mock_executor.clone());
-        // FIXED: Lock the mutex to set the JSON response for the test.
         mock_executor
             .json_response
             .lock()

@@ -4,7 +4,6 @@ use serde::Deserialize;
 use std::process::{Command, Output, Stdio};
 use std::sync::Arc;
 
-// --- Hyprland Data Structures ---
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct Workspace {
     pub id: i32,
@@ -19,8 +18,6 @@ pub struct WindowInfo {
     pub class: String,
 }
 
-// --- Abstraction for Testability ---
-
 /// A trait that abstracts the execution of `hyprctl` commands.
 /// It must be Send + Sync to be used across threads.
 pub trait HyprctlExecutor: Send + Sync {
@@ -30,7 +27,6 @@ pub trait HyprctlExecutor: Send + Sync {
 
 /// The executor that runs the actual `hyprctl` command.
 pub struct LiveExecutor;
-
 impl HyprctlExecutor for LiveExecutor {
     fn execute_json(&self, command: &str) -> Result<Output> {
         Command::new("hyprctl")
@@ -53,15 +49,12 @@ impl HyprctlExecutor for LiveExecutor {
     }
 }
 
-// --- Hyprland Interaction Functions ---
 #[derive(Clone)]
 pub struct Hyprland {
-    // The executor is now owned via an Arc, making it thread-safe and removing lifetimes.
     executor: Arc<dyn HyprctlExecutor>,
 }
 
 impl Hyprland {
-    /// Creates a new Hyprland instance with a given executor.
     pub fn new(executor: Arc<dyn HyprctlExecutor>) -> Self {
         Hyprland { executor }
     }
