@@ -3,12 +3,12 @@ use crate::dbus::{DbusMenu, StatusNotifierItem};
 use crate::hyprland::{Hyprland, WindowInfo};
 use crate::stack::Stack;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use futures_util::stream::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Notify;
-use tokio::time::{Duration, interval};
+use tokio::time::{interval, Duration};
 use zbus::{Connection, ConnectionBuilder, Proxy};
 
 // --- Trait for abstracting D-Bus interactions for testability ---
@@ -58,11 +58,7 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
         }
     }
 
-    pub async fn minimize(mut self) -> Result<()> {
-        if self.window_info.class.is_empty() {
-            self.window_info.class = self.window_info.title.clone();
-        }
-
+    pub async fn minimize(self) -> Result<()> {
         self.minimize_window()?;
 
         let exit_notify = Arc::new(Notify::new());
