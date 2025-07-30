@@ -1,5 +1,5 @@
 //! D-Bus implementation for com.canonical.dbusmenu.
-use crate::hyprland::{WindowInfo, Workspace, hyprctl, hyprctl_dispatch};
+use crate::hyprland::{Hyprland, WindowInfo, Workspace};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -8,8 +8,9 @@ use zbus::dbus_interface;
 use zbus::zvariant::Value;
 
 pub struct DbusMenu {
-    pub window_info: WindowInfo,
-    pub exit_notify: Arc<Notify>,
+    window_info: WindowInfo,
+    exit_notify: Arc<Notify>,
+    hyprland: Hyprland,
 }
 
 // Type alias to simplify the complex return type of `get_layout`.
@@ -17,28 +18,40 @@ pub struct DbusMenu {
 type MenuLayout<'a> = (u32, (i32, HashMap<String, Value<'a>>, Vec<Value<'a>>));
 
 impl DbusMenu {
+    /// Instantiates DbusMenu
+    pub fn new(window_info: WindowInfo, exit_notify: Arc<Notify>, hyprland: &Hyprland) -> Self {
+        DbusMenu {
+            window_info,
+            exit_notify,
+            hyprland: hyprland.clone(),
+        }
+    }
+
     /// Handles the logic for opening the window on the currently active workspace.
     fn handle_open_on_active(&self) -> Result<()> {
-        let active_workspace = hyprctl::<Workspace>("activeworkspace")?;
-        hyprctl_dispatch(&format!(
+        let active_workspace = self.hyprland.exec::<Workspace>("activeworkspace")?;
+        self.hyprland.dispatch(&format!(
             "movetoworkspace {},address:{}",
             active_workspace.id, self.window_info.address
         ))?;
-        hyprctl_dispatch(&format!("focuswindow address:{}", self.window_info.address))
+        self.hyprland
+            .dispatch(&format!("focuswindow address:{}", self.window_info.address))
     }
 
     /// Handles the logic for opening the window on its original workspace.
     fn handle_open_on_original(&self) -> Result<()> {
-        hyprctl_dispatch(&format!(
+        self.hyprland.dispatch(&format!(
             "movetoworkspace {},address:{}",
             self.window_info.workspace.id, self.window_info.address
         ))?;
-        hyprctl_dispatch(&format!("focuswindow address:{}", self.window_info.address))
+        self.hyprland
+            .dispatch(&format!("focuswindow address:{}", self.window_info.address))
     }
 
     /// Handles the logic for closing the window.
     fn handle_close(&self) -> Result<()> {
-        hyprctl_dispatch(&format!("closewindow address:{}", self.window_info.address))
+        self.hyprland
+            .dispatch(&format!("closewindow address:{}", self.window_info.address))
     }
 }
 
@@ -241,6 +254,7 @@ mod tests {
                 workspace: Workspace { id: 1 },
             },
             exit_notify: Arc::clone(&notify),
+            hyprland: Hyprland::new(),
         };
         (menu, notify)
     }

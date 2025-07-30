@@ -1,10 +1,10 @@
 //! Contains the logic for restoring the last minimized window.
-use crate::hyprland::{WindowInfo, Workspace, hyprctl, hyprctl_dispatch};
+use crate::hyprland::{Hyprland, WindowInfo, Workspace};
 use crate::stack::Stack;
 use anyhow::{Context, Result};
 
 /// Restores the last minimized window from the stack.
-pub async fn restore_last_minimized(stack: &Stack) -> Result<()> {
+pub async fn restore_last_minimized(stack: &Stack, hyprland: &Hyprland) -> Result<()> {
     // Use `if let` to handle the case where the stack is empty, and return early.
     let Some(address) = stack.pop()? else {
         println!("No minimized windows in the stack to restore.");
@@ -13,8 +13,9 @@ pub async fn restore_last_minimized(stack: &Stack) -> Result<()> {
 
     println!("Restoring last minimized window: {address}");
 
-    let clients: Vec<WindowInfo> =
-        hyprctl("clients").context("Failed to get client list to verify window existence.")?;
+    let clients: Vec<WindowInfo> = hyprland
+        .exec("clients")
+        .context("Failed to get client list to verify window existence.")?;
 
     // Use a guard clause to check if the window is still minimized.
     let is_minimized = clients
@@ -27,14 +28,15 @@ pub async fn restore_last_minimized(stack: &Stack) -> Result<()> {
     }
 
     // The main logic now proceeds without extra indentation.
-    let active_workspace: Workspace =
-        hyprctl("activeworkspace").context("Failed to get active workspace for restoration.")?;
+    let active_workspace: Workspace = hyprland
+        .exec("activeworkspace")
+        .context("Failed to get active workspace for restoration.")?;
 
-    hyprctl_dispatch(&format!(
+    hyprland.dispatch(&format!(
         "movetoworkspace {},address:{}",
         active_workspace.id, address
     ))?;
-    hyprctl_dispatch(&format!("focuswindow address:{address}"))?;
+    hyprland.dispatch(&format!("focuswindow address:{address}"))?;
     println!("Window restored to workspace {}.", active_workspace.id);
 
     Ok(())
@@ -117,6 +119,7 @@ mod tests {
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path());
         stack.push("0xRESTORE_TEST")?;
+        let hyprland = Hyprland::new();
 
         let mock_executor = MockExecutor::default();
         // Mock responses are popped in reverse order of calls.
@@ -130,7 +133,7 @@ mod tests {
         let _guard = set_mock_executor(mock_executor.clone());
 
         // Directly .await the function.
-        restore_last_minimized(&stack).await?;
+        restore_last_minimized(&stack, &hyprland).await?;
 
         let dispatched = mock_executor.dispatched_commands();
         assert_eq!(dispatched.len(), 2);
@@ -148,6 +151,7 @@ mod tests {
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path());
         stack.push("0xALREADY_OPEN")?;
+        let hyprland = Hyprland::new();
 
         let mock_executor = MockExecutor::default();
         // The window is on workspace 2, not a special workspace.
@@ -156,7 +160,7 @@ mod tests {
 
         let _guard = set_mock_executor(mock_executor.clone());
 
-        restore_last_minimized(&stack).await?;
+        restore_last_minimized(&stack, &hyprland).await?;
 
         // No commands should be dispatched if the window isn't minimized.
         assert!(mock_executor.dispatched_commands().is_empty());
@@ -170,12 +174,13 @@ mod tests {
     async fn test_restore_with_empty_stack() -> Result<()> {
         let temp_file = NamedTempFile::new()?;
         let stack = Stack::new(temp_file.path()); // An empty stack
+        let hyprland = Hyprland::new();
 
         let mock_executor = MockExecutor::default();
 
         let _guard = set_mock_executor(mock_executor.clone());
 
-        restore_last_minimized(&stack).await?;
+        restore_last_minimized(&stack, &hyprland).await?;
 
         // No commands should be dispatched if the stack is empty.
         assert!(mock_executor.dispatched_commands().is_empty());

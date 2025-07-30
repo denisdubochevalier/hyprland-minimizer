@@ -1,17 +1,29 @@
 //! D-Bus implementation for org.kde.StatusNotifierItem.
-use crate::hyprland::{WindowInfo, Workspace, hyprctl, hyprctl_dispatch};
+use crate::hyprland::{Hyprland, WindowInfo, Workspace};
 use std::sync::Arc;
 use tokio::sync::Notify;
 use zbus::dbus_interface;
 use zbus::zvariant::ObjectPath;
 
 pub struct StatusNotifierItem {
-    pub window_info: WindowInfo,
-    pub exit_notify: Arc<Notify>,
+    window_info: WindowInfo,
+    exit_notify: Arc<Notify>,
+    hyprland: Hyprland,
 }
 
 // Type alias to simplify the complex return type of `tool_tip`.
 type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>, String, String);
+
+impl StatusNotifierItem {
+    /// Instantiates StatusNotifierItem
+    pub fn new(window_info: WindowInfo, exit_notify: Arc<Notify>, hyprland: &Hyprland) -> Self {
+        StatusNotifierItem {
+            window_info,
+            exit_notify,
+            hyprland: hyprland.clone(),
+        }
+    }
+}
 
 #[dbus_interface(name = "org.kde.StatusNotifierItem")]
 impl StatusNotifierItem {
@@ -54,20 +66,25 @@ impl StatusNotifierItem {
     }
 
     fn activate(&self, _x: i32, _y: i32) {
-        if let Ok(active_workspace) = hyprctl::<Workspace>("activeworkspace") {
-            let _ = hyprctl_dispatch(&format!(
-                "movetoworkspace {},address:{}",
-                active_workspace.id, self.window_info.address
-            ))
-            .and_then(|_| {
-                hyprctl_dispatch(&format!("focuswindow address:{}", self.window_info.address))
-            });
+        if let Ok(active_workspace) = self.hyprland.exec::<Workspace>("activeworkspace") {
+            let _ = self
+                .hyprland
+                .dispatch(&format!(
+                    "movetoworkspace {},address:{}",
+                    active_workspace.id, self.window_info.address
+                ))
+                .and_then(|_| {
+                    self.hyprland
+                        .dispatch(&format!("focuswindow address:{}", self.window_info.address))
+                });
         }
         self.exit_notify.notify_one();
     }
 
     fn secondary_activate(&self, _x: i32, _y: i32) {
-        let _ = hyprctl_dispatch(&format!("closewindow address:{}", self.window_info.address));
+        let _ = self
+            .hyprland
+            .dispatch(&format!("closewindow address:{}", self.window_info.address));
         self.exit_notify.notify_one();
     }
 }
@@ -144,6 +161,7 @@ mod tests {
                 workspace: Workspace { id: 1 },
             },
             exit_notify: Arc::clone(&notify),
+            hyprland: Hyprland::new(),
         };
         (item, notify)
     }

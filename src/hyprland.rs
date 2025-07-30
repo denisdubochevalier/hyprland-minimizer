@@ -60,43 +60,53 @@ thread_local! {
 }
 
 // --- Hyprland Interaction Functions ---
+#[derive(Clone)]
+pub struct Hyprland {}
 
-/// Executes a hyprctl command and returns the parsed JSON output.
-pub fn hyprctl<T: for<'de> Deserialize<'de>>(command: &str) -> Result<T> {
-    EXECUTOR.with(|executor_cell| {
-        let executor = executor_cell.borrow();
-        let output = executor.execute_json(command)?;
+impl Hyprland {
+    /// Creates a new Hyprland instance
+    pub fn new() -> Self {
+        Hyprland {}
+    }
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("hyprctl command '{}' failed: {}", command, stderr);
-        }
+    /// Executes a hyprctl command and returns the parsed JSON output.
+    pub fn exec<T: for<'de> Deserialize<'de>>(&self, command: &str) -> Result<T> {
+        EXECUTOR.with(|executor_cell| {
+            let executor = executor_cell.borrow();
+            let output = executor.execute_json(command)?;
 
-        serde_json::from_slice(&output.stdout)
-            .with_context(|| format!("Failed to parse JSON from hyprctl command: {command}"))
-    })
-}
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                anyhow::bail!("hyprctl command '{}' failed: {}", command, stderr);
+            }
 
-/// Executes a hyprctl dispatch command.
-pub fn hyprctl_dispatch(command: &str) -> Result<()> {
-    EXECUTOR.with(|executor_cell| {
-        let executor = executor_cell.borrow();
-        let output = executor.execute_dispatch(command)?;
-        if !output.status.success() {
-            anyhow::bail!("hyprctl dispatch command '{}' failed", command);
-        }
-        Ok(())
-    })
-}
+            serde_json::from_slice(&output.stdout)
+                .with_context(|| format!("Failed to parse JSON from hyprctl command: {command}"))
+        })
+    }
 
-/// Finds a window by its address from the list of all clients.
-pub fn get_window_by_address(address: &str) -> Result<WindowInfo> {
-    let clients: Vec<WindowInfo> =
-        hyprctl("clients").context("Failed to get client list from Hyprland.")?;
-    clients
-        .into_iter()
-        .find(|c| c.address == address)
-        .ok_or_else(|| anyhow!("Could not find a window with address '{}'", address))
+    /// Executes a hyprctl dispatch command.
+    pub fn dispatch(&self, command: &str) -> Result<()> {
+        EXECUTOR.with(|executor_cell| {
+            let executor = executor_cell.borrow();
+            let output = executor.execute_dispatch(command)?;
+            if !output.status.success() {
+                anyhow::bail!("hyprctl dispatch command '{}' failed", command);
+            }
+            Ok(())
+        })
+    }
+
+    /// Finds a window by its address from the list of all clients.
+    pub fn get_window_by_address(&self, address: &str) -> Result<WindowInfo> {
+        let clients: Vec<WindowInfo> = self
+            .exec("clients")
+            .context("Failed to get client list from Hyprland.")?;
+        clients
+            .into_iter()
+            .find(|c| c.address == address)
+            .ok_or_else(|| anyhow!("Could not find a window with address '{}'", address))
+    }
 }
 
 // --- Unit Tests ---
@@ -152,7 +162,7 @@ mod tests {
 
         with_mock_executor(mock_executor, || {
             // Now we call the function with its original, clean signature!
-            let result = get_window_by_address("0x456");
+            let result = Hyprland::new().get_window_by_address("0x456");
 
             assert!(result.is_ok());
             let window = result.unwrap();
@@ -168,7 +178,7 @@ mod tests {
         };
 
         with_mock_executor(mock_executor, || {
-            let result = get_window_by_address("any");
+            let result = Hyprland::new().get_window_by_address("any");
             assert!(result.is_err());
 
             let err_string = format!("{:?}", result.unwrap_err());
