@@ -3,7 +3,7 @@
 
 [package]
 name = "hyprland-minimizer"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -21,7 +21,8 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     let hyprland = Hyprland::new(Arc::new(LiveExecutor));
-    let stack = Stack::at_default_path();
+    let stack = Stack::at_default_path()
+        .expect("Failed to initialize the application stack. Ensure $USER is set.");
 
     if args.restore_last {
         return restore_last_minimized(&stack, &hyprland).await;

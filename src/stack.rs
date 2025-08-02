@@ -1,14 +1,26 @@
 //! Stack management for minimized windows using a file.
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
+use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
-// Default application path
-const STACK_FILE_PATH: &str = "/tmp/hypr-minimizer-stack";
+/// Constructs a user-specific temporary filepath using the $USER environment variable.
+fn get_stack_file_path() -> Result<PathBuf> {
+    match env::var("USER") {
+        Ok(username) => {
+            if username.is_empty() {
+                bail!("The USER environment variable was empty.");
+            }
+            let file_path = format!("/tmp/hypr-minimizer-stack-{}", username);
+            Ok(PathBuf::from(file_path))
+        }
+        Err(_) => bail!("Could not find the USER environment variable."),
+    }
+}
 
 // Represents the stack file.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Stack {
     path: PathBuf,
 }
@@ -19,11 +31,12 @@ impl Stack {
         Stack { path: path.into() }
     }
 
-    /// Creates a Stack instance pointing to the default application path.
-    pub fn at_default_path() -> Self {
-        Stack {
-            path: PathBuf::from(STACK_FILE_PATH),
-        }
+    /// Creates a Stack instance by determining the user-specific default path.
+    /// This can fail if the user cannot be determined from the environment.
+    pub fn at_default_path() -> Result<Self> {
+        let path = get_stack_file_path()?;
+
+        Ok(Stack { path })
     }
 
     /// Pushes a new address onto the stack file.
@@ -84,7 +97,63 @@ fn write_stack(path: &Path, stack: &[String]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
     use tempfile::NamedTempFile;
+
+    #[test]
+    fn at_default_path_success_when_user_is_set() {
+        // --- Setup ---
+        // Set a temporary environment variable for this test.
+        let test_user = "testuser";
+        unsafe {
+            env::set_var("USER", test_user);
+        }
+
+        // --- Execute ---
+        // Call the function we want to test.
+        let result = Stack::at_default_path();
+
+        // --- Assert ---
+        // Ensure the function returned an Ok variant.
+        assert!(result.is_ok());
+
+        // Unwrap the successful result to inspect the Stack instance.
+        let stack = result.unwrap();
+        let expected_path = PathBuf::from(format!("/tmp/hypr-minimizer-stack-{}", test_user));
+
+        // Check if the path inside the struct is what we expect.
+        assert_eq!(stack.path, expected_path);
+
+        // --- Teardown ---
+        // It's good practice to clean up the environment variable,
+        // although it won't affect other tests in this case.
+        unsafe {
+            env::remove_var("USER");
+        }
+    }
+
+    #[test]
+    fn at_default_path_fails_when_user_is_not_set() {
+        // --- Setup ---
+        // Ensure the environment variable is not set.
+        unsafe {
+            env::remove_var("USER");
+        }
+
+        // --- Execute ---
+        let result = Stack::at_default_path();
+
+        // --- Assert ---
+        // Ensure the function returned an Err variant.
+        assert!(result.is_err());
+
+        // Optionally, check for the specific error message.
+        let error_message = result.unwrap_err().to_string();
+        assert_eq!(
+            error_message,
+            "Could not find the USER environment variable."
+        );
+    }
 
     #[test]
     fn test_stack_operations() -> Result<()> {
