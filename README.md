@@ -7,7 +7,7 @@ allowing windows to be hidden and restored from a system tray icon.
 
 ## ⚠️ Warning: Experimental Project ⚠️
 
-This project is currently in a very early and unstable phase (**v0.0.1**). It
+This project is currently in a very early and unstable phase. It
 began as a proof-of-concept and is now undergoing significant refactoring and
 development.
 
