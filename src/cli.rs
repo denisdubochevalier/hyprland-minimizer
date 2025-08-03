@@ -42,6 +42,11 @@ pub struct Args {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stack_base_directory: Option<String>,
 
+    /// The workspace where the minimized windows are moved to.
+    #[arg(long, short = 't')]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace: Option<String>,
+
     /// The poll interval used to check weither the window is still minimized (seconds).
     #[arg(long, short = 'p')]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -74,6 +79,7 @@ mod tests {
             window_address: Some("0x123".to_string()),
             launcher: None,
             stack_base_directory: None,
+            workspace: None,
             restore_to: Some(RestoreTarget::Original),
             poll_interval_seconds: None,
             restore_last: false,

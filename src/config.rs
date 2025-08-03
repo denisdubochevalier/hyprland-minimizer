@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 pub struct Config {
     pub launcher: Option<String>,
     pub stack_base_directory: Option<String>,
+    pub workspace: Option<String>,
     pub restore_to: Option<RestoreTarget>,
     pub poll_interval_seconds: Option<u64>,
 }
@@ -22,6 +23,7 @@ impl Default for Config {
         Self {
             launcher: Some(default_launcher()),
             stack_base_directory: Some(default_stack_base_directory()),
+            workspace: Some(default_workspace()),
             restore_to: Some(default_restore_target()),
             poll_interval_seconds: Some(default_poll_interval()),
         }
@@ -35,6 +37,10 @@ fn default_launcher() -> String {
 
 fn default_stack_base_directory() -> String {
     "/tmp".to_string()
+}
+
+fn default_workspace() -> String {
+    "special:minimized".to_string()
 }
 
 fn default_restore_target() -> RestoreTarget {

@@ -110,7 +110,8 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
         );
         self.stack.push(&self.window_info.address)?;
         self.hyprland.dispatch(&format!(
-            "movetoworkspacesilent special:minimized,address:{}",
+            "movetoworkspacesilent {},address:{}",
+            self.config.workspace.clone().unwrap(),
             self.window_info.address
         ))
     }

@@ -40,6 +40,13 @@ l be [stack_base_directory]/hypr-minimizer-stack-[USER].
 - **Type:** String
 - **Default:** `"/tmp"`
 
+## workspace
+
+The name of the workspace where the minimized windows are moved to.
+
+- **Type:** String
+- **Default:** `"special:minimized"`
+
 ## restore_to
 
 Determines which workspace a window should be restored to when activated from
