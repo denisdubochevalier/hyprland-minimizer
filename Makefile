@@ -26,7 +26,7 @@ test:
 	@cargo test --no-default-features
 
 .PHONY: install
-install: build
+install:
 	@echo "Installing binary to $(BINDIR)..."
 	@mkdir -p "$(BINDIR)"
 	@install -m 755 target/release/hyprland-minimizer "$(BINDIR)/"
