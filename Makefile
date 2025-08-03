@@ -10,6 +10,11 @@ MANDIR := $(PREFIX)/share/man
 .PHONY: all
 all: build
 
+.PHONY: build-no-man
+build-no-man:
+	@echo "Building release binary without man pages..."
+	@cargo build --release --no-default-features
+
 .PHONY: build
 build: 
 	@echo "Building release binary..."
@@ -18,7 +23,7 @@ build:
 .PHONY: test
 test:
 	@echo "Testing..."
-	@cargo test
+	@cargo test --no-default-features
 
 .PHONY: install
 install: build
