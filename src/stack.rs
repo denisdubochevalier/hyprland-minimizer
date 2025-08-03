@@ -5,14 +5,20 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
+use crate::config::Config;
+
 /// Constructs a user-specific temporary filepath using the $USER environment variable.
-fn get_stack_file_path() -> Result<PathBuf> {
+fn get_stack_file_path(dir: String) -> Result<PathBuf> {
+    if dir.is_empty() {
+        bail!("The base directory was not set.");
+    }
+
     match env::var("USER") {
         Ok(username) => {
             if username.is_empty() {
                 bail!("The USER environment variable was empty.");
             }
-            let file_path = format!("/tmp/hypr-minimizer-stack-{}", username);
+            let file_path = format!("{}/hypr-minimizer-stack-{}", dir, username);
             Ok(PathBuf::from(file_path))
         }
         Err(_) => bail!("Could not find the USER environment variable."),
@@ -33,8 +39,8 @@ impl Stack {
 
     /// Creates a Stack instance by determining the user-specific default path.
     /// This can fail if the user cannot be determined from the environment.
-    pub fn at_default_path() -> Result<Self> {
-        let path = get_stack_file_path()?;
+    pub fn at_default_path(config: Config) -> Result<Self> {
+        let path = get_stack_file_path(config.stack_base_directory)?;
 
         Ok(Stack { path })
     }
@@ -111,7 +117,7 @@ mod tests {
 
         // --- Execute ---
         // Call the function we want to test.
-        let result = Stack::at_default_path();
+        let result = Stack::at_default_path(Config::default());
 
         // --- Assert ---
         // Ensure the function returned an Ok variant.
@@ -141,7 +147,7 @@ mod tests {
         }
 
         // --- Execute ---
-        let result = Stack::at_default_path();
+        let result = Stack::at_default_path(Config::default());
 
         // --- Assert ---
         // Ensure the function returned an Err variant.

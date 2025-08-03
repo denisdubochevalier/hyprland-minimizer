@@ -1,4 +1,5 @@
 //! Contains the core logic for minimizing a window to a tray icon.
+use crate::config::Config;
 use crate::dbus::{DbusMenu, StatusNotifierItem};
 use crate::hyprland::{Hyprland, WindowInfo};
 use crate::stack::Stack;
@@ -44,6 +45,7 @@ impl DbusConnection for LiveDbus {
 
 // Minimizer service
 pub struct Minimizer<'a, D: DbusConnection> {
+    config: Config,
     stack: &'a Stack,
     window_info: WindowInfo,
     hyprland: Hyprland,
@@ -51,8 +53,15 @@ pub struct Minimizer<'a, D: DbusConnection> {
 }
 
 impl<'a, D: DbusConnection> Minimizer<'a, D> {
-    pub fn new(stack: &'a Stack, window_info: WindowInfo, hyprland: Hyprland, dbus: &'a D) -> Self {
+    pub fn new(
+        config: Config,
+        stack: &'a Stack,
+        window_info: WindowInfo,
+        hyprland: Hyprland,
+        dbus: &'a D,
+    ) -> Self {
         Minimizer {
+            config,
             stack,
             window_info,
             hyprland,
@@ -80,6 +89,7 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
             self.window_info.address.clone(),
             Arc::clone(&exit_notify),
             self.hyprland.clone(),
+            self.config.poll_interval_seconds,
         );
 
         println!("Application minimized to tray. Waiting for activation...");
@@ -197,9 +207,15 @@ fn spawn_background_tasks(
     window_address: String,
     exit_notify: Arc<Notify>,
     hyprland: Hyprland,
+    poll_interval: u64,
 ) {
     tokio::spawn(watch_for_tray_restarts(arc_conn.clone(), bus_name));
-    tokio::spawn(poll_window_state(window_address, exit_notify, hyprland));
+    tokio::spawn(poll_window_state(
+        poll_interval,
+        window_address,
+        exit_notify,
+        hyprland,
+    ));
 }
 
 /// A background task that re-registers the tray icon if the tray restarts.
@@ -222,8 +238,13 @@ async fn watch_for_tray_restarts(arc_conn: Arc<Connection>, bus_name: String) {
 
 /// A background task that polls hyprland to see if the minimized window
 /// has been closed or restored externally.
-async fn poll_window_state(window_address: String, exit_notify: Arc<Notify>, hyprland: Hyprland) {
-    let mut interval = interval(Duration::from_secs(2));
+async fn poll_window_state(
+    poll_interval: u64,
+    window_address: String,
+    exit_notify: Arc<Notify>,
+    hyprland: Hyprland,
+) {
+    let mut interval = interval(Duration::from_secs(poll_interval));
     loop {
         interval.tick().await;
 
@@ -315,7 +336,8 @@ mod tests {
         let hyprland = Hyprland::new(mock_executor.clone());
         let mock_dbus = MockDbus;
 
-        let minimizer = Minimizer::new(&stack, test_window, hyprland, &mock_dbus);
+        let minimizer =
+            Minimizer::new(Config::default(), &stack, test_window, hyprland, &mock_dbus);
         let result = minimizer.minimize().await;
 
         assert!(result.is_err(), "Expected minimize to fail");

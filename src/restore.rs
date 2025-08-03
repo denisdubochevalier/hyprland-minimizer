@@ -1,10 +1,16 @@
 //! Contains the logic for restoring the last minimized window.
+use crate::config::{Config, RestoreTarget};
 use crate::hyprland::{Hyprland, WindowInfo, Workspace};
 use crate::stack::Stack;
+
 use anyhow::{Context, Result};
 
 /// Restores the last minimized window from the stack.
-pub async fn restore_last_minimized(stack: &Stack, hyprland: &Hyprland) -> Result<()> {
+pub async fn restore_last_minimized(
+    config: Config,
+    stack: &Stack,
+    hyprland: &Hyprland,
+) -> Result<()> {
     let Some(address) = stack.pop()? else {
         println!("No minimized windows in the stack to restore.");
         return Ok(());
@@ -25,16 +31,18 @@ pub async fn restore_last_minimized(stack: &Stack, hyprland: &Hyprland) -> Resul
         return Ok(());
     }
 
-    let active_workspace: Workspace = hyprland
-        .exec("activeworkspace")
-        .context("Failed to get active workspace for restoration.")?;
+    if config.restore_to == RestoreTarget::Active {
+        let active_workspace: Workspace = hyprland
+            .exec("activeworkspace")
+            .context("Failed to get active workspace for restoration.")?;
 
-    hyprland.dispatch(&format!(
-        "movetoworkspace {},address:{}",
-        active_workspace.id, address
-    ))?;
+        hyprland.dispatch(&format!(
+            "movetoworkspace {},address:{}",
+            active_workspace.id, address
+        ))?;
+        println!("Window restored to workspace {}.", active_workspace.id);
+    }
     hyprland.dispatch(&format!("focuswindow address:{address}"))?;
-    println!("Window restored to workspace {}.", active_workspace.id);
 
     Ok(())
 }
@@ -106,7 +114,7 @@ mod tests {
         mock_executor.add_json_response(r#"[{"address": "0xRESTORE_TEST", "workspace": {"id": -99}, "title": "Test", "class": "Test"}]"#);
 
         // Directly .await the function with the mock-powered hyprland instance.
-        restore_last_minimized(&stack, &hyprland).await?;
+        restore_last_minimized(Config::default(), &stack, &hyprland).await?;
 
         let dispatched = mock_executor.dispatched_commands();
         assert_eq!(dispatched.len(), 2);
@@ -131,7 +139,7 @@ mod tests {
         // The window is on workspace 2, not a special workspace.
         mock_executor.add_json_response(r#"[{"address": "0xALREADY_OPEN", "workspace": {"id": 2}, "title": "Test", "class": "Test"}]"#);
 
-        restore_last_minimized(&stack, &hyprland).await?;
+        restore_last_minimized(Config::default(), &stack, &hyprland).await?;
 
         // No commands should be dispatched if the window isn't minimized.
         assert!(mock_executor.dispatched_commands().is_empty());
@@ -149,7 +157,7 @@ mod tests {
         let mock_executor = Arc::new(MockExecutor::default());
         let hyprland = Hyprland::new(mock_executor.clone() as Arc<dyn hyprland::HyprctlExecutor>);
 
-        restore_last_minimized(&stack, &hyprland).await?;
+        restore_last_minimized(Config::default(), &stack, &hyprland).await?;
 
         // No commands should be dispatched if the stack is empty.
         assert!(mock_executor.dispatched_commands().is_empty());

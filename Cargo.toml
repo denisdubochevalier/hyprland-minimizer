@@ -24,6 +24,7 @@ anyhow = "1.0"
 clap = { version = "4.5.4", features = ["derive"] }
 futures-util = "0.3"                                # <--- This is needed for the .next() method on streams
 async-trait = "0.1.88"
+figment = { version = "0.10.19", features = ["toml"] }
 
 [dev-dependencies]
 tempfile = "3.10"
