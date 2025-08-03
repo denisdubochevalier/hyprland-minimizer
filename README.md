@@ -131,7 +131,7 @@ bind = $mainMod, M, exec, hyprland-minimizer
 bind = $mainMod SHIFT, M, exec, hyprland-minimizer --restore-last
 
 # Interactively select a window to restore
-bind = $mainMod, C, exec, hyprland-minimizer --select
+bind = $mainMod, C, exec, hyprland-minimizer --menu
 ```
 
 ## Contributing

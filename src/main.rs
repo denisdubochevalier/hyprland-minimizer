@@ -3,6 +3,7 @@ mod cli;
 mod config;
 mod dbus;
 mod hyprland;
+mod menu;
 mod minimize;
 mod restore;
 mod stack;
@@ -20,6 +21,7 @@ use std::sync::Arc;
 use crate::cli::Args;
 use crate::config::{generate_default_config, get_config_dir, Config};
 use crate::hyprland::{Hyprland, LiveExecutor};
+use crate::menu::Menu;
 use crate::minimize::{LiveDbus, Minimizer};
 use crate::restore::restore_last_minimized;
 use crate::stack::Stack;
@@ -57,6 +59,11 @@ async fn main() -> Result<()> {
     let hyprland = Hyprland::new(Arc::new(LiveExecutor));
     let stack = Stack::at_default_path(config.clone())
         .expect("Failed to initialize the application stack. Ensure $USER is set.");
+
+    if args.menu {
+        let menu = Menu::new(&config, &stack, &hyprland);
+        return menu.show_and_restore().await;
+    }
 
     if args.restore_last {
         return restore_last_minimized(config.clone(), &stack, &hyprland).await;

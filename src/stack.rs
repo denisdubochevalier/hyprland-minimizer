@@ -1,4 +1,6 @@
 //! Stack management for minimized windows using a file.
+use crate::hyprland::{Hyprland, WindowInfo};
+
 use anyhow::{bail, Context, Result};
 use std::env;
 use std::fs::{File, OpenOptions};
@@ -76,6 +78,22 @@ impl Stack {
             write_stack(&self.path, &stack)?;
         }
         Ok(last)
+    }
+
+    /// Get all minimized windows
+    pub fn minimized(&self, hyprland: &Hyprland) -> Result<Vec<WindowInfo>> {
+        let stack = read_stack(&self.path)?;
+
+        let windows: Vec<WindowInfo> = stack
+            .iter()
+            .filter_map(|addr| {
+                // Using filter_map to safely ignore any errors, which can happen if a window was
+                // closed after being minimized.
+                hyprland.get_window_by_address(addr).ok()
+            })
+            .collect();
+
+        Ok(windows)
     }
 }
 

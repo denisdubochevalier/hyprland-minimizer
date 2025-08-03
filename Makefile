@@ -16,7 +16,7 @@ build-no-man:
 	@cargo build --release --no-default-features
 
 .PHONY: build
-build: 
+build: clean
 	@echo "Building release binary..."
 	@cargo build --release
 

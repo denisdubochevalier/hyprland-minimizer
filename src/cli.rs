@@ -48,12 +48,16 @@ pub struct Args {
     pub poll_interval_seconds: Option<u64>,
 
     /// Restore the last minimized window to the current workspace.
-    #[arg(long, short = 'r', action, default_value_t = false)]
+    #[arg(long, short = 'r', action, default_value_t = false, conflicts_with_all = ["generate_config_file", "menu", "window_address"])]
     pub restore_last: bool,
 
     /// Generate config file.
-    #[arg(long, short = 'g', default_value_t = false, conflicts_with_all = ["window_address", "restore_last"])]
+    #[arg(long, short = 'g', default_value_t = false, conflicts_with_all = ["menu", "window_address", "restore_last"])]
     pub generate_config_file: bool,
+
+    /// Open selection menu.
+    #[arg(long, short = 'm', default_value_t = false, conflicts_with_all = ["window_address", "restore_last", "generate_config_file"])]
+    pub menu: bool,
 }
 
 #[cfg(test)]
@@ -74,6 +78,7 @@ mod tests {
             poll_interval_seconds: None,
             restore_last: false,
             generate_config_file: false,
+            menu: false,
         };
 
         // --- 2. Execution ---
@@ -86,6 +91,7 @@ mod tests {
             "window_address": "0x123",
             "restore_to": "original",
             "restore_last": false,
+            "menu": false,
             "generate_config_file": false
         });
 
