@@ -9,14 +9,16 @@ mod stack;
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use directories::ProjectDirs;
 use figment::{
     Figment,
     providers::{Format, Serialized, Toml},
 };
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::cli::Args;
-use crate::config::Config;
+use crate::config::{Config, generate_default_config};
 use crate::hyprland::{Hyprland, LiveExecutor};
 use crate::minimize::{LiveDbus, Minimizer};
 use crate::restore::restore_last_minimized;
@@ -26,11 +28,26 @@ use crate::stack::Stack;
 async fn main() -> Result<()> {
     let args = Args::parse();
 
+    // Check for the generate_config_file flag first.
+    if args.generate_config_file {
+        // If the flag is present, generate the file and exit.
+        return generate_default_config();
+    }
+
+    // Find the config file path using the directories crate.
+    let config_path =
+        if let Some(proj_dirs) = ProjectDirs::from("fr", "denischevalier", "hyprland-minimizer") {
+            proj_dirs.config_dir().join("config.toml")
+        } else {
+            // Fallback for environments where home directory can't be determined.
+            PathBuf::from("hyprland-minimizer.toml")
+        };
+
     let config: Config = Figment::new()
         // 1. Start with hardcoded defaults
         .merge(Serialized::defaults(Config::default()))
         // 2. Merge the config file (it's okay if it doesn't exist)
-        .merge(Toml::file("~/.config/hyprland-minimizer/config.toml"))
+        .merge(Toml::file(&config_path))
         // 3. Merge CLI arguments, which have the highest priority
         .merge(Serialized::defaults(args.clone()))
         .extract()
