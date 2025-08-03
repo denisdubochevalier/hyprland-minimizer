@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::cli::Args;
-use crate::config::{Config, generate_default_config};
+use crate::config::{Config, generate_default_config, get_config_dir};
 use crate::hyprland::{Hyprland, LiveExecutor};
 use crate::minimize::{LiveDbus, Minimizer};
 use crate::restore::restore_last_minimized;
@@ -31,7 +31,8 @@ async fn main() -> Result<()> {
     // Check for the generate_config_file flag first.
     if args.generate_config_file {
         // If the flag is present, generate the file and exit.
-        return generate_default_config();
+        let config_dir = get_config_dir()?;
+        return generate_default_config(&config_dir);
     }
 
     // Find the config file path using the directories crate.

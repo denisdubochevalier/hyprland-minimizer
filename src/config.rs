@@ -4,6 +4,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
 // Enum for the restore target, which is safer than a raw string.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -50,12 +51,16 @@ fn default_poll_interval() -> u64 {
     2
 }
 
-/// Creates a default configuration file if one does not already exist.
-pub fn generate_default_config() -> Result<()> {
+/// Finds the project's configuration directory using XDG standards.
+pub fn get_config_dir() -> Result<PathBuf> {
     let Some(proj_dirs) = ProjectDirs::from("fr", "denischevalier", "hyprland-minimizer") else {
-        anyhow::bail!("Could not find a valid home directory to create config file.");
+        anyhow::bail!("Could not find a valid home directory.");
     };
-    let config_dir = proj_dirs.config_dir();
+    Ok(proj_dirs.config_dir().to_path_buf())
+}
+
+/// Creates a default configuration file if one does not already exist.
+pub fn generate_default_config(config_dir: &Path) -> Result<()> {
     let config_path = config_dir.join("config.toml");
 
     if config_path.exists() {
@@ -85,4 +90,57 @@ pub fn generate_default_config() -> Result<()> {
         config_path
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_generate_config_creates_file() -> Result<()> {
+        // --- 1. Setup ---
+        // Create a temporary directory for the test.
+        let temp_dir = tempdir()?;
+        let config_dir = temp_dir.path();
+        let config_file_path = config_dir.join("config.toml");
+
+        // --- 2. Execution ---
+        // Run the function to generate the config.
+        generate_default_config(config_dir)?;
+
+        // --- 3. Assertions ---
+        // Check that the file was created.
+        assert!(config_file_path.exists(), "Config file should be created");
+
+        // Check that the file content is correct.
+        let content = fs::read_to_string(config_file_path)?;
+        let expected_content = toml::to_string_pretty(&Config::default())?;
+        assert_eq!(content, expected_content);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generate_config_does_not_overwrite() -> Result<()> {
+        // --- 1. Setup ---
+        let temp_dir = tempdir()?;
+        let config_dir = temp_dir.path();
+        let config_file_path = config_dir.join("config.toml");
+
+        // Create a dummy file with different content.
+        let initial_content = "do_not_overwrite = true";
+        fs::write(&config_file_path, initial_content)?;
+
+        // --- 2. Execution ---
+        // Run the function again.
+        generate_default_config(config_dir)?;
+
+        // --- 3. Assertions ---
+        // Check that the file content has not changed.
+        let final_content = fs::read_to_string(config_file_path)?;
+        assert_eq!(initial_content, final_content);
+
+        Ok(())
+    }
 }
