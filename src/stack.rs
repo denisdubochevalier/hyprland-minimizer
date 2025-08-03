@@ -1,5 +1,5 @@
 //! Stack management for minimized windows using a file.
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -40,7 +40,7 @@ impl Stack {
     /// Creates a Stack instance by determining the user-specific default path.
     /// This can fail if the user cannot be determined from the environment.
     pub fn at_default_path(config: Config) -> Result<Self> {
-        let path = get_stack_file_path(config.stack_base_directory)?;
+        let path = get_stack_file_path(config.stack_base_directory.unwrap())?;
 
         Ok(Stack { path })
     }

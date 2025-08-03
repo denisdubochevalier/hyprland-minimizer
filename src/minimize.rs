@@ -4,12 +4,12 @@ use crate::dbus::{DbusMenu, StatusNotifierItem};
 use crate::hyprland::{Hyprland, WindowInfo};
 use crate::stack::Stack;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use futures_util::stream::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Notify;
-use tokio::time::{Duration, interval};
+use tokio::time::{interval, Duration};
 use zbus::{Connection, ConnectionBuilder, Proxy};
 
 // D-Bus Connection, mockable
@@ -89,7 +89,7 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
             self.window_info.address.clone(),
             Arc::clone(&exit_notify),
             self.hyprland.clone(),
-            self.config.poll_interval_seconds,
+            self.config.poll_interval_seconds.unwrap(),
         );
 
         println!("Application minimized to tray. Waiting for activation...");

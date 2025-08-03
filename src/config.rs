@@ -1,4 +1,6 @@
 //! Allows parsing of the config file
+use crate::cli::RestoreTarget;
+
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -6,30 +8,22 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-// Enum for the restore target, which is safer than a raw string.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum RestoreTarget {
-    Active,
-    Original,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
-    pub launcher: String,
-    pub stack_base_directory: String,
-    pub restore_to: RestoreTarget,
-    pub poll_interval_seconds: u64,
+    pub launcher: Option<String>,
+    pub stack_base_directory: Option<String>,
+    pub restore_to: Option<RestoreTarget>,
+    pub poll_interval_seconds: Option<u64>,
 }
 
 // This ensures that Config::default() uses our custom default values.
 impl Default for Config {
     fn default() -> Self {
         Self {
-            launcher: default_launcher(),
-            stack_base_directory: default_stack_base_directory(),
-            restore_to: default_restore_target(),
-            poll_interval_seconds: default_poll_interval(),
+            launcher: Some(default_launcher()),
+            stack_base_directory: Some(default_stack_base_directory()),
+            restore_to: Some(default_restore_target()),
+            poll_interval_seconds: Some(default_poll_interval()),
         }
     }
 }

@@ -11,14 +11,14 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use directories::ProjectDirs;
 use figment::{
-    Figment,
     providers::{Format, Serialized, Toml},
+    Figment,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::cli::Args;
-use crate::config::{Config, generate_default_config, get_config_dir};
+use crate::config::{generate_default_config, get_config_dir, Config};
 use crate::hyprland::{Hyprland, LiveExecutor};
 use crate::minimize::{LiveDbus, Minimizer};
 use crate::restore::restore_last_minimized;

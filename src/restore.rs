@@ -1,5 +1,6 @@
 //! Contains the logic for restoring the last minimized window.
-use crate::config::{Config, RestoreTarget};
+use crate::cli::RestoreTarget;
+use crate::config::Config;
 use crate::hyprland::{Hyprland, WindowInfo, Workspace};
 use crate::stack::Stack;
 
@@ -31,7 +32,7 @@ pub async fn restore_last_minimized(
         return Ok(());
     }
 
-    if config.restore_to == RestoreTarget::Active {
+    if config.restore_to.unwrap() == RestoreTarget::Active {
         let active_workspace: Workspace = hyprland
             .exec("activeworkspace")
             .context("Failed to get active workspace for restoration.")?;
