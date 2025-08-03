@@ -1,9 +1,16 @@
-//! Command-line interface definition.
+/// Command-line interface definition.
 use clap::Parser;
 use serde::Serialize;
 
 #[derive(Parser, Debug, Serialize, Clone)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about = "A utility to minimize Hyprland windows to the system tray.",
+    long_about = "A small utility to add true 'minimize to tray' functionality to Hyprland, allowing windows to be hidden and restored from a system tray icon.
+
+It works by moving windows to a special workspace and creating a D-Bus service to register a tray icon with Waybar or other status bars."
+)]
 #[serde(rename_all = "lowercase")]
 pub struct Args {
     /// The launcher used for menu selection of windows to restore. Must follow dmenu
@@ -16,7 +23,7 @@ pub struct Args {
     pub window_address: Option<String>,
 
     /// The workspace to restore the window to: active or original.
-    #[arg(long, short = 'r')]
+    #[arg(long, short = 't')]
     pub restore_to: Option<String>,
 
     /// The base directory to store the stack tmp file.

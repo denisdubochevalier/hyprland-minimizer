@@ -1,12 +1,8 @@
-# This file defines the project metadata and dependencies.
-# Place this in the root directory of your new Rust project.
-
 [package]
 name = "hyprland-minimizer"
+authors = ["Denis Chevalier"]
 version = "0.0.2"
 edition = "2024"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 # zbus is a modern, async D-Bus library
@@ -22,11 +18,16 @@ serde_json = "1.0"
 # For handling errors gracefully
 anyhow = "1.0"
 clap = { version = "4.5.4", features = ["derive"] }
-futures-util = "0.3"                                # <--- This is needed for the .next() method on streams
+futures-util = "0.3"
 async-trait = "0.1.88"
 figment = { version = "0.10.19", features = ["toml"] }
 directories = "6.0.0"
 toml = "0.9.4"
+
+[build-dependencies]
+clap = { version = "4.5", features = ["derive"] }
+clap_mangen = "0.2"
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 tempfile = "3.10"
