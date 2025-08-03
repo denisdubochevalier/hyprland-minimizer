@@ -43,7 +43,7 @@ pub struct Args {
     pub stack_base_directory: Option<String>,
 
     /// The workspace where the minimized windows are moved to.
-    #[arg(long, short = 't')]
+    #[arg(long, short = 'u')]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace: Option<String>,
 
@@ -52,16 +52,20 @@ pub struct Args {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub poll_interval_seconds: Option<u64>,
 
+    /// Unminimize on focus. Set it to true to integrate with docks like hypr-dock.
+    #[arg(long, short = 'a', action, default_value_t = false)]
+    pub auto_unminimize_on_focus: bool,
+
     /// Restore the last minimized window to the current workspace.
     #[arg(long, short = 'r', action, default_value_t = false, conflicts_with_all = ["generate_config_file", "menu", "window_address"])]
     pub restore_last: bool,
 
     /// Generate config file.
-    #[arg(long, short = 'g', default_value_t = false, conflicts_with_all = ["menu", "window_address", "restore_last"])]
+    #[arg(long, short = 'g', action, default_value_t = false, conflicts_with_all = ["menu", "window_address", "restore_last"])]
     pub generate_config_file: bool,
 
     /// Open selection menu.
-    #[arg(long, short = 'm', default_value_t = false, conflicts_with_all = ["window_address", "restore_last", "generate_config_file"])]
+    #[arg(long, short = 'm', action, default_value_t = false, conflicts_with_all = ["window_address", "restore_last", "generate_config_file"])]
     pub menu: bool,
 }
 
@@ -82,6 +86,7 @@ mod tests {
             workspace: None,
             restore_to: Some(RestoreTarget::Original),
             poll_interval_seconds: None,
+            auto_unminimize_on_focus: false,
             restore_last: false,
             generate_config_file: false,
             menu: false,
@@ -96,6 +101,7 @@ mod tests {
         let expected_json = json!({
             "window_address": "0x123",
             "restore_to": "original",
+            "auto_unminimize_on_focus": false,
             "restore_last": false,
             "menu": false,
             "generate_config_file": false

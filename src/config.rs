@@ -15,6 +15,7 @@ pub struct Config {
     pub workspace: Option<String>,
     pub restore_to: Option<RestoreTarget>,
     pub poll_interval_seconds: Option<u64>,
+    pub auto_unminimize_on_focus: Option<bool>,
 }
 
 // This ensures that Config::default() uses our custom default values.
@@ -26,6 +27,7 @@ impl Default for Config {
             workspace: Some(default_workspace()),
             restore_to: Some(default_restore_target()),
             poll_interval_seconds: Some(default_poll_interval()),
+            auto_unminimize_on_focus: Some(default_unminimize_on_focus()),
         }
     }
 }
@@ -49,6 +51,10 @@ fn default_restore_target() -> RestoreTarget {
 
 fn default_poll_interval() -> u64 {
     2
+}
+
+fn default_unminimize_on_focus() -> bool {
+    false
 }
 
 /// Finds the project's configuration directory using XDG standards.

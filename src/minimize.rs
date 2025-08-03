@@ -1,7 +1,8 @@
 //! Contains the core logic for minimizing a window to a tray icon.
+use crate::cli::RestoreTarget;
 use crate::config::Config;
 use crate::dbus::{DbusMenu, StatusNotifierItem};
-use crate::hyprland::{Hyprland, WindowInfo};
+use crate::hyprland::{Hyprland, WindowInfo, Workspace};
 use crate::stack::Stack;
 
 use anyhow::{anyhow, Context, Result};
@@ -90,6 +91,7 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
             Arc::clone(&exit_notify),
             self.hyprland.clone(),
             self.config.poll_interval_seconds.unwrap(),
+            self.config.auto_unminimize_on_focus.unwrap(),
         );
 
         println!("Application minimized to tray. Waiting for activation...");
@@ -117,10 +119,24 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
     }
 
     fn restore_window(&self) -> Result<()> {
+        // Default to restoring to the window's original workspace.
+        let mut target_workspace_id = self.window_info.workspace.id;
+
+        // If configured to restore to active, try to get it, but only use it if it's a regular workspace.
+        if self.config.restore_to.unwrap() == RestoreTarget::Active {
+            if let Ok(active_ws) = self.hyprland.exec::<Workspace>("activeworkspace") {
+                if active_ws.id > 0 {
+                    target_workspace_id = active_ws.id;
+                }
+            }
+        }
+
         self.hyprland.dispatch(&format!(
             "movetoworkspace {},address:{}",
-            self.window_info.workspace.id, self.window_info.address
+            target_workspace_id, self.window_info.address
         ))?;
+        self.hyprland
+            .dispatch(&format!("focuswindow address:{}", self.window_info.address))?;
         self.stack.remove(&self.window_info.address)
     }
 
@@ -157,6 +173,11 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
             }
             _ = exit_notify.notified() => {
                 println!("Exit notification received.");
+                // The notification means our job is done. Attempt to restore the window
+                // as the final action, handling any potential errors gracefully.
+                if let Err(e) = self.restore_window() {
+                    eprintln!("[Error] Failed to restore window on exit: {e}");
+                }
             }
         }
     }
@@ -209,10 +230,12 @@ fn spawn_background_tasks(
     exit_notify: Arc<Notify>,
     hyprland: Hyprland,
     poll_interval: u64,
+    auto_unminize_on_focus: bool,
 ) {
     tokio::spawn(watch_for_tray_restarts(arc_conn.clone(), bus_name));
     tokio::spawn(poll_window_state(
         poll_interval,
+        auto_unminize_on_focus,
         window_address,
         exit_notify,
         hyprland,
@@ -241,6 +264,7 @@ async fn watch_for_tray_restarts(arc_conn: Arc<Connection>, bus_name: String) {
 /// has been closed or restored externally.
 async fn poll_window_state(
     poll_interval: u64,
+    auto_unminimize_on_focus: bool,
     window_address: String,
     exit_notify: Arc<Notify>,
     hyprland: Hyprland,
@@ -249,6 +273,7 @@ async fn poll_window_state(
     loop {
         interval.tick().await;
 
+        // First, check if the window was closed or restored normally.
         let Ok(clients) = hyprland.exec::<Vec<WindowInfo>>("clients") else {
             exit_notify.notify_one();
             return;
@@ -264,6 +289,18 @@ async fn poll_window_state(
         if should_exit {
             exit_notify.notify_one();
             return;
+        }
+
+        // If the feature is enabled, check if the window has been focused.
+        if auto_unminimize_on_focus {
+            if let Ok(active_window) = hyprland.exec::<WindowInfo>("activewindow") {
+                if active_window.address == window_address {
+                    // The minimized window is now active. Signal the main process
+                    // to restore it and exit.
+                    exit_notify.notify_one();
+                    return;
+                }
+            }
         }
     }
 }
@@ -349,7 +386,7 @@ mod tests {
         );
 
         let dispatched = mock_executor.dispatched_commands.lock().unwrap();
-        assert_eq!(dispatched.len(), 2, "Expected exactly 2 dispatch calls");
+        assert_eq!(dispatched.len(), 3, "Expected exactly 3 dispatch calls");
         assert_eq!(
             dispatched[0],
             "movetoworkspacesilent special:minimized,address:0xMINIMIZE_TEST"

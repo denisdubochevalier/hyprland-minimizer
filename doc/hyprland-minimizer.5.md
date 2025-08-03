@@ -66,6 +66,15 @@ has been closed or restored externally.
 - **Type:** Integer
 - **Default:** `2`
 
+## auto_unminimize_on_focus
+
+When set to true, the application will automatically restore the window if during
+its poll it detects that it is focused. Use it to have hyprland-minimizer
+interact nicely with docks such as hypr-dock.
+
+- **Type:** Boolean
+- **Default:** `false`
+
 # EXAMPLES
 
 Here is an example of a config.toml file that uses rofi and restores windows to
