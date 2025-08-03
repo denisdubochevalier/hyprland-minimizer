@@ -27,6 +27,9 @@ Rust and is not yet recommended for critical daily use.
   minimized window without needing to use the tray.
 - **Context Menu:** Right-click the tray icon for options like restoring to the
   original workspace or closing the window directly.
+- **Interactive Restore**: Use a dmenu-style launcher (like rofi or wofi) to select
+  any minimized window to restore.
+- **Configuration**: Customize behavior through a simple TOML configuration file.
 
 ## How It Works
 
@@ -36,67 +39,100 @@ The utility uses a simple but effective trick:
    Hyprland (specifically, `special:minimized`).
 1. A D-Bus service is created for the window, allowing it to register as a
    `StatusNotifierItem` with your system tray.
-1. A temporary file (`/tmp/hypr-minimizer-stack`) keeps track of the order of
-   minimized windows, enabling the "restore last" feature.
+1. A temporary file (`/tmp/hypr-minimizer-stack-your user`) keeps track of the
+   order of minimized windows, enabling the "restore last" feature.
 1. When the tray icon is activated, a `hyprctl` command is dispatched to move
    the window back to a visible workspace.
 
 ## Installation
 
-Currently, you must build the project from the source.
+The recommended way to install is to build from source using the provided
+Makefile, which will also install the man pages.
 
 ### Prerequisites
 
 - [Rust toolchain](https://www.rust-lang.org/tools/install)
+- `pandoc` (for generating man pages)
 - `hyprctl` (comes with Hyprland)
 - A status bar with a system tray module (e.g., Waybar)
 
-### Build Steps
+### Build and Install Steps
 
 1. Clone the repository:
 
    ```sh
-   git clone [https://github.com/your-username/hyprland-minimizer.git](https://github.com/your-username/hyprland-minimizer.git)
+   git clone [https://github.com/denisdubochevalier/hyprland-minimizer.git](https://github.com/denisdubochevalier/hyprland-minimizer.git)
    cd hyprland-minimizer
    ```
 
-1. Build the release binary:
+1. Build the application:
 
    ```sh
-   cargo build --release
+   make
    ```
 
-1. The executable will be located at `target/release/hyprland-minimizer`. You
-   can copy it to a directory in your `$PATH`, such as `~/.local/bin/`.
+   To build without generating man pages (which avoids the `pandoc` dependency),
+   run:
+
+   ```sh
+   make build-no-man
+   ```
+
+1. Install the files:
+
+   ```sh
+   sudo make install
+   ```
+
+   You can also install to a local directory by specifying:
+
+   ```sh
+   make install PREFIX=~/.local
+   ```
+
+## Configuration
+
+The first time you run the application, you can generate a default configuration
+file.
+
+1. Generate the config:
+
+   ```sh
+   hyprland-minimizer --generate-config-file
+   ```
+
+1. This will create a file at `~/.config/hyprland-minimizer/config.toml` with
+   default settings you can customize. See `man 5 hyprland-minimizer` for details
+   on all available options.
 
 ## Usage
 
-The tool has two main modes of operation.
+The application has several modes. For detailed information on all commands and
+flags, you can view the man pages installed on your system:
 
-### To Minimize a Window
+```sh
+man 1 hyprland-minimizer # Command documentation
+man 5 hyprland-minimizer # Configuration documentation
+```
 
-Bind the command to a hotkey in your `hyprland.conf`.
+For daily use, you will likely bind the main functions to hotkeys in your `hyprland.conf`.
 
-In `hyprland.conf`
+### Keybindings
+
+Bind the commands to hotkeys in your `hyprland.conf`.
 
 ```ini
+# In hyprland.conf
+
+# Minimize the active window
 bind = $mainMod, M, exec, hyprland-minimizer
-```
 
-Pressing `$mainMod + M` will minimize the currently active window.
-
-### To Restore the Last Minimized Window
-
-You can bind the `--restore-last` (or `-r`) flag to another hotkey.
-
-In `hyprland.conf`
-
-```ini
+# Restore the last minimized window
 bind = $mainMod SHIFT, M, exec, hyprland-minimizer --restore-last
-```
 
-This will pop the most recently minimized window from the stack and restore it
-to your active workspace.
+# Interactively select a window to restore
+bind = $mainMod, C, exec, hyprland-minimizer --select
+```
 
 ## Contributing
 
