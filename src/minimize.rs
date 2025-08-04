@@ -90,7 +90,7 @@ impl<'a, D: DbusConnection> Minimizer<'a, D> {
             self.window_info.address.clone(),
             Arc::clone(&exit_notify),
             self.hyprland.clone(),
-            self.config.poll_interval_seconds.unwrap(),
+            self.config.poll_interval_ms.unwrap(),
             self.config.auto_unminimize_on_focus.unwrap(),
         );
 
@@ -269,7 +269,7 @@ async fn poll_window_state(
     exit_notify: Arc<Notify>,
     hyprland: Hyprland,
 ) {
-    let mut interval = interval(Duration::from_secs(poll_interval));
+    let mut interval = interval(Duration::from_millis(poll_interval));
     loop {
         interval.tick().await;
 

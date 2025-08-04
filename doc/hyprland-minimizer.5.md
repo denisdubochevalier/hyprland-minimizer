@@ -58,13 +58,13 @@ the tray icon or interactive menu.
   - `original`: Restores the window to the workspace it was on when it was minimized.
 - **Default:** `"active"`
 
-## poll_interval_seconds
+## poll_interval_ms
 
-The interval, in seconds, at which the application checks if a minimized window
+The interval, in milliseconds, at which the application checks if a minimized window
 has been closed or restored externally.
 
 - **Type:** Integer
-- **Default:** `2`
+- **Default:** `2000`
 
 ## auto_unminimize_on_focus
 

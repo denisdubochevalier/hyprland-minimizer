@@ -14,7 +14,7 @@ pub struct Config {
     pub stack_base_directory: Option<String>,
     pub workspace: Option<String>,
     pub restore_to: Option<RestoreTarget>,
-    pub poll_interval_seconds: Option<u64>,
+    pub poll_interval_ms: Option<u64>,
     pub auto_unminimize_on_focus: Option<bool>,
 }
 
@@ -26,7 +26,7 @@ impl Default for Config {
             stack_base_directory: Some(default_stack_base_directory()),
             workspace: Some(default_workspace()),
             restore_to: Some(default_restore_target()),
-            poll_interval_seconds: Some(default_poll_interval()),
+            poll_interval_ms: Some(default_poll_interval()),
             auto_unminimize_on_focus: Some(default_unminimize_on_focus()),
         }
     }
@@ -50,7 +50,7 @@ fn default_restore_target() -> RestoreTarget {
 }
 
 fn default_poll_interval() -> u64 {
-    2
+    2000
 }
 
 fn default_unminimize_on_focus() -> bool {

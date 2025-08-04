@@ -47,10 +47,10 @@ pub struct Args {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace: Option<String>,
 
-    /// The poll interval used to check weither the window is still minimized (seconds).
+    /// The poll interval used to check weither the window is still minimized (milliseconds).
     #[arg(long, short = 'p')]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub poll_interval_seconds: Option<u64>,
+    pub poll_interval_ms: Option<u64>,
 
     /// Unminimize on focus. Set it to true to integrate with docks like hypr-dock.
     #[arg(long, short = 'a', action, default_value_t = false)]
@@ -85,7 +85,7 @@ mod tests {
             stack_base_directory: None,
             workspace: None,
             restore_to: Some(RestoreTarget::Original),
-            poll_interval_seconds: None,
+            poll_interval_ms: None,
             auto_unminimize_on_focus: false,
             restore_last: false,
             generate_config_file: false,
@@ -113,7 +113,7 @@ mod tests {
         let obj = json_value.as_object().unwrap();
         assert!(!obj.contains_key("launcher"));
         assert!(!obj.contains_key("stack_base_directory"));
-        assert!(!obj.contains_key("poll_interval_seconds"));
+        assert!(!obj.contains_key("poll_interval_ms"));
         assert!(!obj.contains_key("command"));
     }
 }
