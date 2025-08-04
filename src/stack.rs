@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use crate::config::Config;
 
 /// Constructs a user-specific temporary filepath using the $USER environment variable.
-fn get_stack_file_path(dir: String) -> Result<PathBuf> {
+fn get_stack_file_path(dir: String, workspace: String) -> Result<PathBuf> {
     if dir.is_empty() {
         bail!("The base directory was not set.");
     }
@@ -20,7 +20,7 @@ fn get_stack_file_path(dir: String) -> Result<PathBuf> {
             if username.is_empty() {
                 bail!("The USER environment variable was empty.");
             }
-            let file_path = format!("{}/hypr-minimizer-stack-{}", dir, username);
+            let file_path = format!("{}/hypr-minimizer-stack-{}-{}", dir, username, workspace);
             Ok(PathBuf::from(file_path))
         }
         Err(_) => bail!("Could not find the USER environment variable."),
@@ -42,7 +42,10 @@ impl Stack {
     /// Creates a Stack instance by determining the user-specific default path.
     /// This can fail if the user cannot be determined from the environment.
     pub fn at_default_path(config: Config) -> Result<Self> {
-        let path = get_stack_file_path(config.stack_base_directory.unwrap())?;
+        let path = get_stack_file_path(
+            config.stack_base_directory.unwrap(),
+            config.workspace.unwrap(),
+        )?;
 
         Ok(Stack { path })
     }
@@ -143,7 +146,10 @@ mod tests {
 
         // Unwrap the successful result to inspect the Stack instance.
         let stack = result.unwrap();
-        let expected_path = PathBuf::from(format!("/tmp/hypr-minimizer-stack-{}", test_user));
+        let expected_path = PathBuf::from(format!(
+            "/tmp/hypr-minimizer-stack-{}-special:minimized",
+            test_user
+        ));
 
         // Check if the path inside the struct is what we expect.
         assert_eq!(stack.path, expected_path);

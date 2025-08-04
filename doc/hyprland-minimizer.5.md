@@ -35,7 +35,7 @@ selection to its standard output.
 ## stack_base_directory
 
 The base directory where the temporary stack file is stored. The final path wil
-l be [stack_base_directory]/hypr-minimizer-stack-[USER].
+l be [stack_base_directory]/hypr-minimizer-stack-[USER]-[WORKSPACE].
 
 - **Type:** String
 - **Default:** `"/tmp"`
